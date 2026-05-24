@@ -10,6 +10,8 @@ import { StatisticsQueryDto } from "./dto/statistics-query.dto";
 import { MonthlyReportDto } from "./dto/monthly-report.dto";
 import { StudentService } from "../student/student.service";
 import { CourseService } from "../course/course.service";
+import { Student } from "../student/entities/student.entity";
+import { Teacher } from "../teacher/entities/teacher.entity";
 
 @Injectable()
 export class StatisticsService {
@@ -18,6 +20,10 @@ export class StatisticsService {
     private paymentRepository: Repository<Payment>,
     @InjectRepository(StudentMovement)
     private studentMovementRepository: Repository<StudentMovement>,
+    @InjectRepository(Student)
+    private studentRepository: Repository<Student>,
+    @InjectRepository(Teacher)
+    private teacherRepository: Repository<Teacher>,
     private studentService: StudentService,
     private courseService: CourseService
   ) {}
@@ -60,7 +66,7 @@ export class StatisticsService {
 
     const [data, total] = await this.paymentRepository.findAndCount({
       where,
-      relations: ["student", "student.user", "course"],
+      relations: ["student", "student.user", "course", "course.teacher", "course.teacher.user", "course.direction"],
       order: { paymentDate: "DESC" },
       skip,
       take: limit,
@@ -178,6 +184,32 @@ export class StatisticsService {
 
   getDashboardStatistics() {
     return { message: "Dashboard statistics data" };
+  }
+
+  async getMonthlyRegistrations(year: number): Promise<{ month: number; students: number; teachers: number }[]> {
+    const [studentRows, teacherRows] = await Promise.all([
+      this.studentRepository
+        .createQueryBuilder('s')
+        .select("EXTRACT(MONTH FROM s.createdAt)::int", 'month')
+        .addSelect("COUNT(*)", 'count')
+        .where("EXTRACT(YEAR FROM s.createdAt) = :year", { year })
+        .groupBy("EXTRACT(MONTH FROM s.createdAt)")
+        .getRawMany(),
+      this.teacherRepository
+        .createQueryBuilder('t')
+        .select("EXTRACT(MONTH FROM t.createdAt)::int", 'month')
+        .addSelect("COUNT(*)", 'count')
+        .where("EXTRACT(YEAR FROM t.createdAt) = :year", { year })
+        .groupBy("EXTRACT(MONTH FROM t.createdAt)")
+        .getRawMany(),
+    ]);
+
+    return Array.from({ length: 12 }, (_, i) => {
+      const m = i + 1;
+      const s = studentRows.find((r) => Number(r.month) === m);
+      const t = teacherRows.find((r) => Number(r.month) === m);
+      return { month: m, students: s ? Number(s.count) : 0, teachers: t ? Number(t.count) : 0 };
+    });
   }
 
   async getMonthlyReport(reportDto: MonthlyReportDto): Promise<any> {

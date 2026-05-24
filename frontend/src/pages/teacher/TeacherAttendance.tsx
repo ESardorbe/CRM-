@@ -1,12 +1,19 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, Save } from 'lucide-react'
+import { Check, Save, AlertTriangle, Calendar, Clock } from 'lucide-react'
 import { useAuthContext } from '../../context/AuthContext'
 import { useLang } from '../../context/LangContext'
 import { teachersApi } from '../../api/teachers'
 import { coursesApi } from '../../api/courses'
 import { attendanceApi, type AttendanceRecordDto } from '../../api/attendance'
 import { format } from 'date-fns'
+
+const UZ_DAYS: Record<string, number> = {
+  Dushanba: 1, Seshanba: 2, Chorshanba: 3,
+  Payshanba: 4, Juma: 5, Shanba: 6, Yakshanba: 0,
+}
+
+const UZ_DAY_NAMES = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba']
 
 type Status = 'present' | 'absent' | 'late'
 
@@ -43,6 +50,23 @@ export default function TeacherAttendance() {
   })
 
   const selectedCourse = courses?.find((c) => c.id === selectedCourseId)
+
+  // Parse course schedule to find class day numbers
+  const courseClassDays = useMemo(() => {
+    if (!selectedCourse?.schedule) return new Set<number>()
+    const days = new Set<number>()
+    selectedCourse.schedule.forEach((s) => {
+      const dayName = s.split(' ')[0]
+      const dayNum = UZ_DAYS[dayName]
+      if (dayNum !== undefined) days.add(dayNum)
+    })
+    return days
+  }, [selectedCourse])
+
+  // Check if selected date is a class day
+  const selectedDateObj = selectedDate ? new Date(selectedDate + 'T00:00:00') : null
+  const selectedDateDayNum = selectedDateObj ? selectedDateObj.getDay() : -1
+  const isClassDay = courseClassDays.size === 0 || courseClassDays.has(selectedDateDayNum)
 
   // Preload existing attendance when course+date changes
   useQuery({
@@ -91,24 +115,59 @@ export default function TeacherAttendance() {
       <h1 className="text-xl font-bold text-gray-800 dark:text-white">{t('takeAttendance')}</h1>
 
       {/* Controls */}
-      <div className="bg-white dark:bg-card-dark rounded-xl shadow-sm p-4 flex flex-wrap gap-4 items-end">
-        <div className="flex-1 min-w-40">
-          <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">{t('selectGroup')}</label>
-          <select
-            className="input-field"
-            value={selectedCourseId}
-            onChange={(e) => { setSelectedCourseId(e.target.value); setRows({}) }}
-          >
-            <option value="">— {t('selectGroup')} —</option>
-            {courses?.map((c) => (
-              <option key={c.id} value={c.id}>{c.title}</option>
-            ))}
-          </select>
+      <div className="bg-white dark:bg-card-dark rounded-xl shadow-sm p-4 space-y-4">
+        <div className="flex flex-wrap gap-4 items-end">
+          <div className="flex-1 min-w-40">
+            <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">{t('selectGroup')}</label>
+            <select
+              className="input-field"
+              value={selectedCourseId}
+              onChange={(e) => { setSelectedCourseId(e.target.value); setRows({}) }}
+            >
+              <option value="">— {t('selectGroup')} —</option>
+              {courses?.map((c) => (
+                <option key={c.id} value={c.id}>{c.title}</option>
+              ))}
+            </select>
+          </div>
+          <div className="min-w-40">
+            <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">{t('selectDate')}</label>
+            <input type="date" className="input-field" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
+          </div>
         </div>
-        <div className="min-w-40">
-          <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">{t('selectDate')}</label>
-          <input type="date" className="input-field" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
-        </div>
+
+        {/* Schedule info for selected course */}
+        {selectedCourse?.schedule && selectedCourse.schedule.length > 0 && (
+          <div className="flex items-start gap-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
+            <Calendar size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300 mb-1.5">Dars kunlari:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {selectedCourse.schedule.map((s, i) => {
+                  const parts = s.split(' ')
+                  const day = parts[0]
+                  const time = parts[1] ?? ''
+                  return (
+                    <span key={i} className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 dark:bg-emerald-800/40 text-emerald-700 dark:text-emerald-200 rounded-full text-xs font-medium">
+                      <span>{day}</span>
+                      {time && <span className="opacity-70 flex items-center gap-0.5"><Clock size={10} />{time}</span>}
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Warning: not a class day */}
+        {selectedCourseId && selectedDate && !isClassDay && (
+          <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
+            <AlertTriangle size={15} className="text-amber-600 shrink-0" />
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              <strong>{UZ_DAY_NAMES[selectedDateDayNum]}</strong> — bu kurs uchun belgilangan dars kuni emas. Siz baribir davomat ola olasiz (qo'shimcha dars uchun).
+            </p>
+          </div>
+        )}
         {selectedCourseId && students.length > 0 && (
           <div className="flex gap-2 items-center flex-wrap">
             <button

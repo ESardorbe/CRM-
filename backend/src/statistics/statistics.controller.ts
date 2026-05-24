@@ -27,6 +27,16 @@ export class StatisticsController {
     return this.statisticsService.getDashboardStatistics()
   }
 
+  // Monthly registrations (students/teachers added per month)
+  @Get("registrations")
+  @UseGuards(AccessTokenGuard, RoleGuard)
+  @Roles(Role.Admin, Role.SuperAdmin, Role.Teacher, Role.Moderator)
+  @ApiOperation({ summary: "Get monthly student and teacher registration counts" })
+  getMonthlyRegistrations(@Query('year') year?: string) {
+    const y = year ? Number(year) : new Date().getFullYear();
+    return this.statisticsService.getMonthlyRegistrations(y);
+  }
+
   // Monthly reports
   @Get("monthly-report")
   @UseGuards(AccessTokenGuard, RoleGuard)

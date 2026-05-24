@@ -31,7 +31,7 @@ export const teachersApi = {
     api.post<Teacher>('/teachers', dto).then((r) => r.data),
 
   update: (id: string, dto: UpdateTeacherDto) =>
-    api.patch<Teacher>(`/teachers/${id}`, dto).then((r) => r.data),
+    api.put<Teacher>(`/teachers/${id}`, dto).then((r) => r.data),
 
   remove: (id: string) =>
     api.delete(`/teachers/${id}`).then((r) => r.data),

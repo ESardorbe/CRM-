@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Search, Trash2, UserCog, UserPlus, X, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react'
+import { Search, Trash2, UserCog, UserPlus, X, ChevronLeft, ChevronRight, AlertTriangle, Check } from 'lucide-react'
 import { authApi, type RegisterWithRoleDto } from '../api/auth'
 import type { User } from '../types'
 import { useAuthContext } from '../context/AuthContext'
@@ -30,6 +30,11 @@ export default function Users() {
   const [showCreate, setShowCreate] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [editTarget, setEditTarget] = useState<User | null>(null)
+  const [editRole, setEditRole] = useState('')
+  const [editVerify, setEditVerify] = useState(false)
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
 
   const [form, setForm] = useState<RegisterWithRoleDto>({
     firstName: '', lastName: '', email: '', password: '', role: 'user',
@@ -67,6 +72,31 @@ export default function Users() {
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role } : u)))
     } catch (err: any) {
       alert(err?.response?.data?.message ?? 'Xatolik yuz berdi')
+    }
+  }
+
+  const openEdit = (u: User) => {
+    setEditTarget(u)
+    setEditRole(u.role)
+    setEditVerify(u.isVerify ?? false)
+    setEditError('')
+  }
+
+  const handleEditSave = async () => {
+    if (!editTarget) return
+    setEditSaving(true)
+    setEditError('')
+    try {
+      if (editRole !== editTarget.role) {
+        await authApi.updateUserRole(editTarget.id, { role: editRole })
+      }
+      setUsers((prev) => prev.map((u) => u.id === editTarget.id ? { ...u, role: editRole, isVerify: editVerify } : u))
+      setEditTarget(null)
+    } catch (err: any) {
+      const msg = err?.response?.data?.message
+      setEditError(Array.isArray(msg) ? msg.join(', ') : (msg ?? 'Xatolik yuz berdi'))
+    } finally {
+      setEditSaving(false)
     }
   }
 
@@ -206,13 +236,15 @@ export default function Users() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => handleRoleChange(u.id, u.role)}
-                          className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                          title={t('edit')}
-                        >
-                          <UserCog size={15} />
-                        </button>
+                        {u.role !== 'superadmin' && u.id !== currentUser?.id && (
+                          <button
+                            onClick={() => openEdit(u)}
+                            className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                            title="Sozlamalar"
+                          >
+                            <UserCog size={15} />
+                          </button>
+                        )}
                         {isSuperAdmin && u.role !== 'superadmin' && u.id !== currentUser?.id && (
                           <button
                             onClick={() => setDeleteTarget({ id: u.id, name: `${u.firstName} ${u.lastName}` })}
@@ -296,6 +328,78 @@ export default function Users() {
                   : <><Trash2 size={14} /> {t('delete')}</>
                 }
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit user modal */}
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-card-dark rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-base font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+                <UserCog size={18} className="text-primary" /> Foydalanuvchi sozlamalari
+              </h2>
+              <button onClick={() => setEditTarget(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+              <p className="font-medium text-gray-800 dark:text-white text-sm">{editTarget.firstName} {editTarget.lastName}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{editTarget.email}</p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">{t('role')}</label>
+                <select
+                  className="input-field"
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value)}
+                >
+                  {ROLES.filter((r) => r !== 'superadmin').map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                <div>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Tasdiqlangan holat</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{editVerify ? 'Tasdiqlangan' : 'Tasdiqlanmagan'}</p>
+                </div>
+                <button
+                  onClick={() => setEditVerify((v) => !v)}
+                  className={`w-12 h-6 rounded-full transition-colors flex items-center px-1 ${editVerify ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'}`}
+                >
+                  <span className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${editVerify ? 'translate-x-6' : ''}`} />
+                </button>
+              </div>
+
+              {editError && (
+                <p className="text-red-500 text-sm bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">{editError}</p>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => setEditTarget(null)}
+                  className="flex-1 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  {t('cancel')}
+                </button>
+                <button
+                  onClick={handleEditSave}
+                  disabled={editSaving}
+                  className="flex-1 btn-primary flex items-center justify-center gap-2"
+                >
+                  {editSaving
+                    ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    : <><Check size={14} /> {t('save')}</>
+                  }
+                </button>
+              </div>
             </div>
           </div>
         </div>

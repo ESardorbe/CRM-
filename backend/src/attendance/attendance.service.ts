@@ -54,7 +54,7 @@ export class AttendanceService {
     if (studentId) where.student = { id: studentId };
     return this.repo.find({
       where,
-      relations: ['student', 'student.user', 'course'],
+      relations: ['student', 'student.user', 'course', 'course.direction', 'course.teacher', 'course.teacher.user'],
       order: { date: 'DESC' },
     });
   }

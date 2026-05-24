@@ -34,8 +34,9 @@ export class StudentController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('search') search?: string,
+    @Query('directionId') directionId?: string,
   ) {
-    return this.studentService.findAll(Number(page) || 1, Number(limit) || 10, search)
+    return this.studentService.findAll(Number(page) || 1, Number(limit) || 10, search, directionId)
   }
 
   @Get(':id')

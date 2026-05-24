@@ -32,8 +32,11 @@ export class Payment {
   @Column({ type: 'float' })
   amount: number;
 
-  @Column()
+  @Column({ default: 'UZS' })
   currency: string;
+
+  @Column({ nullable: true })
+  description: string;
 
   @Column({ type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
   status: PaymentStatus;

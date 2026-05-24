@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import StatCard from '../components/ui/StatCard'
 import { statisticsApi } from '../api/statistics'
@@ -32,21 +32,16 @@ export default function Dashboard() {
     queryFn: () => statisticsApi.getMonthlyReport(now.getFullYear(), now.getMonth() + 1),
   })
 
-  const monthlyQueries = useQuery({
-    queryKey: ['monthly-chart', chartYear],
-    queryFn: async () => {
-      const results = await Promise.all(
-        MONTHS.map((_, i) =>
-          statisticsApi.getMonthlyReport(chartYear, i + 1).catch(() => null),
-        ),
-      )
-      return results.map((r, i) => ({
-        name: MONTHS[i].slice(0, 3),
-        "Jami o'quvchilar": r?.studentMovements.joined ?? 0,
-        'Tark etganlar': r?.studentMovements.left ?? 0,
-      }))
-    },
+  const { data: registrations, isLoading: regLoading } = useQuery({
+    queryKey: ['monthly-registrations', chartYear],
+    queryFn: () => statisticsApi.getRegistrations(chartYear),
   })
+
+  const chartData = registrations?.map((r, i) => ({
+    name: MONTHS[i].slice(0, 3),
+    "O'quvchilar": r.students,
+    "O'qituvchilar": r.teachers,
+  })) ?? []
 
   return (
     <div className="space-y-6">
@@ -78,33 +73,32 @@ export default function Dashboard() {
               </button>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 ml-8">
-              {MONTHS[now.getMonth()]} oyigacha bo'lgan statistika
+              Oylar bo'yicha ro'yxatdan o'tganlar
             </p>
           </div>
           <div className="space-y-1 text-xs">
             <div className="flex items-center gap-2">
               <span className="w-8 h-2 bg-primary rounded inline-block" />
-              <span className="text-gray-600 dark:text-gray-300">Jami o'quvchilar</span>
+              <span className="text-gray-600 dark:text-gray-300">O'quvchilar</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-8 h-2 bg-pink-500 rounded inline-block" />
-              <span className="text-gray-600 dark:text-gray-300">Tark etganlar</span>
+              <span className="w-8 h-2 bg-emerald-500 rounded inline-block" />
+              <span className="text-gray-600 dark:text-gray-300">O'qituvchilar</span>
             </div>
           </div>
         </div>
 
-        {monthlyQueries.isLoading ? (
+        {regLoading ? (
           <div className="h-48 flex items-center justify-center text-gray-400">Yuklanmoqda...</div>
         ) : (
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={monthlyQueries.data} barCategoryGap="30%">
+            <BarChart data={chartData} barCategoryGap="30%">
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} allowDecimals={false} />
               <Tooltip />
-              <Legend wrapperStyle={{ display: 'none' }} />
-              <Bar dataKey="Jami o'quvchilar" fill="#3D52D5" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Tark etganlar" fill="#ec4899" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="O'quvchilar" fill="#3D52D5" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="O'qituvchilar" fill="#10b981" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}

@@ -4,6 +4,7 @@ import { Check, CheckCheck } from 'lucide-react'
 import { statisticsApi, type CreatePaymentDto } from '../api/statistics'
 import { studentsApi } from '../api/students'
 import { coursesApi } from '../api/courses'
+import { directionsApi } from '../api/directions'
 import SearchInput from '../components/ui/SearchInput'
 import Pagination from '../components/ui/Pagination'
 import { format } from 'date-fns'
@@ -12,6 +13,7 @@ const EMPTY: CreatePaymentDto = {
   studentId: '',
   courseId: '',
   amount: 0,
+  currency: 'UZS',
   status: 'completed',
   method: 'cash',
   paymentDate: format(new Date(), 'yyyy-MM-dd'),
@@ -21,6 +23,7 @@ const EMPTY: CreatePaymentDto = {
 export default function Payments() {
   const qc = useQueryClient()
   const [form, setForm] = useState<CreatePaymentDto>(EMPTY)
+  const [selectedDirectionId, setSelectedDirectionId] = useState('')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
 
@@ -34,26 +37,53 @@ export default function Payments() {
     queryFn: () => studentsApi.getAll({ limit: 200 }),
   })
 
+  const { data: directions } = useQuery({
+    queryKey: ['directions-list'],
+    queryFn: () => directionsApi.getAll({ limit: 100 }),
+  })
+
   const { data: courses } = useQuery({
     queryKey: ['courses-list'],
-    queryFn: () => coursesApi.getAll({ limit: 100 }),
+    queryFn: () => coursesApi.getAll({ limit: 200 }),
   })
+
+  // filter courses by selected direction
+  const filteredCourses = selectedDirectionId
+    ? courses?.data.filter((c) => c.direction?.id === selectedDirectionId)
+    : courses?.data ?? []
+
+  const handleStudentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const studentId = e.target.value
+    const student = students?.data.find((s) => s.id === studentId)
+    const course = student?.courses[0]
+    if (course) {
+      setSelectedDirectionId(course.direction?.id ?? '')
+      setForm((f) => ({ ...f, studentId, courseId: course.id }))
+    } else {
+      setSelectedDirectionId('')
+      setForm((f) => ({ ...f, studentId, courseId: '' }))
+    }
+  }
 
   const createMutation = useMutation({
     mutationFn: statisticsApi.createPayment,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['payments'] })
       setForm(EMPTY)
+      setSelectedDirectionId('')
     },
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    createMutation.mutate(form)
+    createMutation.mutate({ ...form, currency: 'UZS' })
   }
 
   const set = (key: keyof CreatePaymentDto) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [key]: key === 'amount' ? Number(e.target.value) : e.target.value }))
+
+  const selectedCourse = courses?.data.find((c) => c.id === form.courseId)
+  const selectedStudent = students?.data.find((s) => s.id === form.studentId)
 
   const filteredData = data?.data.filter((p) =>
     search ? `${p.student.user.firstName} ${p.student.user.lastName}`.toLowerCase().includes(search.toLowerCase()) : true,
@@ -67,7 +97,7 @@ export default function Payments() {
         <form onSubmit={handleSubmit} className="grid grid-cols-3 gap-4">
           <div>
             <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">O'quvchi ismi</label>
-            <select className="input-field" value={form.studentId} onChange={set('studentId')} required>
+            <select className="input-field" value={form.studentId} onChange={handleStudentChange} required>
               <option value="">Tanlang</option>
               {students?.data.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -78,26 +108,45 @@ export default function Payments() {
           </div>
           <div>
             <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">Yo'nalish</label>
+            <select
+              className="input-field"
+              value={selectedDirectionId}
+              onChange={(e) => {
+                setSelectedDirectionId(e.target.value)
+                setForm((f) => ({ ...f, courseId: '' }))
+              }}
+            >
+              <option value="">Barcha yo'nalishlar</option>
+              {directions?.data.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">Guruh</label>
             <select className="input-field" value={form.courseId} onChange={set('courseId')} required>
-              <option value="">Tanlang</option>
-              {courses?.data.map((c) => (
-                <option key={c.id} value={c.id}>{c.title}</option>
+              <option value="">Guruhni tanlang</option>
+              {filteredCourses?.map((c) => (
+                <option key={c.id} value={c.id}>{c.title} {c.code ? `(${c.code})` : ''}</option>
               ))}
             </select>
           </div>
           <div>
             <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">Telefon raqam</label>
-            <input className="input-field" placeholder="+998 xx xxx xx xx" value={
-              students?.data.find((s) => s.id === form.studentId)?.user.phone ?? ''
-            } readOnly />
+            <input className="input-field" placeholder="+998 xx xxx xx xx" value={selectedStudent?.user.phone ?? ''} readOnly />
           </div>
           <div>
             <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">O'qituvchi ismi</label>
-            <input className="input-field" value={
-              courses?.data.find((c) => c.id === form.courseId)?.teacher
-                ? `${courses.data.find((c) => c.id === form.courseId)!.teacher!.user.firstName} ${courses.data.find((c) => c.id === form.courseId)!.teacher!.user.lastName}`
-                : ''
-            } readOnly placeholder="Avtomatik" />
+            <input
+              className="input-field"
+              value={
+                selectedCourse?.teacher
+                  ? `${selectedCourse.teacher.user.firstName} ${selectedCourse.teacher.user.lastName}`
+                  : ''
+              }
+              readOnly
+              placeholder="Avtomatik"
+            />
           </div>
           <div>
             <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">To'lov qilayotgan kun</label>
@@ -105,7 +154,7 @@ export default function Payments() {
           </div>
           <div>
             <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">Summa (so'm)</label>
-            <input className="input-field" type="number" placeholder="0" value={form.amount || ''} onChange={set('amount')} required />
+            <input className="input-field" type="number" placeholder="0" value={form.amount || ''} onChange={set('amount')} required min={1} />
           </div>
           <div>
             <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">To'lov usuli</label>
@@ -116,12 +165,17 @@ export default function Payments() {
               <option value="online">Online</option>
             </select>
           </div>
-          <div className="col-start-3 flex items-end">
+          <div className="flex items-end">
             <button type="submit" disabled={createMutation.isPending} className="btn-primary w-full">
               {createMutation.isPending ? 'Saqlanmoqda...' : "To'lov qilish"}
             </button>
           </div>
         </form>
+        {createMutation.isError && (
+          <p className="text-red-500 text-sm mt-3 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
+            {(() => { const m = (createMutation.error as any)?.response?.data?.message; return Array.isArray(m) ? m.join(', ') : (m || 'Xatolik yuz berdi') })()}
+          </p>
+        )}
       </div>
 
       {/* Table */}
@@ -138,16 +192,16 @@ export default function Payments() {
           <table className="w-full text-sm">
             <thead>
               <tr className="table-header">
-                {['№', "O'quvchi ismi", 'Telefon nomer', "Yo'nalish", "O'qituvchisi", "To'lov vaqti", ''].map((h) => (
+                {['№', "O'quvchi ismi", 'Telefon', "Guruh", "O'qituvchi", 'Summa', "To'lov vaqti", ''].map((h) => (
                   <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">Yuklanmoqda...</td></tr>
+                <tr><td colSpan={8} className="text-center py-8 text-gray-400">Yuklanmoqda...</td></tr>
               ) : filteredData?.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">To'lovlar topilmadi</td></tr>
+                <tr><td colSpan={8} className="text-center py-8 text-gray-400">To'lovlar topilmadi</td></tr>
               ) : (
                 filteredData?.map((p, i) => (
                   <tr key={p.id} className={i % 2 === 0 ? 'table-row-even' : 'table-row-odd'}>
@@ -156,9 +210,12 @@ export default function Payments() {
                     <td className="px-4 py-3">{p.student.user.phone ?? '—'}</td>
                     <td className="px-4 py-3">{p.course.title}</td>
                     <td className="px-4 py-3">
-                      {p.course.teacher
-                        ? `${p.course.teacher.user.firstName} ${p.course.teacher.user.lastName}`
+                      {(p.course as any).teacher?.user
+                        ? `${(p.course as any).teacher.user.firstName} ${(p.course as any).teacher.user.lastName}`
                         : '—'}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-primary">
+                      {Number(p.amount).toLocaleString()} so'm
                     </td>
                     <td className="px-4 py-3">{format(new Date(p.paymentDate), 'dd.MM.yyyy')}</td>
                     <td className="px-4 py-3">

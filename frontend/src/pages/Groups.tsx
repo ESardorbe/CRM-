@@ -247,7 +247,7 @@ export default function Groups() {
                         />
                       ) : c.title}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs">{c.code ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs">{c.code ?? '—'}</td>
                     <td className="px-4 py-3">
                       {editId === c.id ? (
                         <select

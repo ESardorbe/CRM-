@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Trash2, Pencil, X, Camera } from 'lucide-react'
+import { Trash2, Pencil, X, Camera, Filter } from 'lucide-react'
 import { studentsApi, type CreateStudentDto, type UpdateStudentDto } from '../api/students'
 import { coursesApi } from '../api/courses'
+import { directionsApi } from '../api/directions'
 import SearchInput from '../components/ui/SearchInput'
 import Pagination from '../components/ui/Pagination'
 import type { Student } from '../types'
@@ -34,6 +35,7 @@ export default function Students() {
   const { t } = useLang()
   const [form, setForm] = useState<CreateStudentDto>(EMPTY)
   const [search, setSearch] = useState('')
+  const [directionFilter, setDirectionFilter] = useState('')
   const [page, setPage] = useState(1)
   const [editStudent, setEditStudent] = useState<Student | null>(null)
   const [editForm, setEditForm] = useState<EditForm>({
@@ -42,13 +44,18 @@ export default function Students() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['students', page, search],
-    queryFn: () => studentsApi.getAll({ page, limit: 10, search }),
+    queryKey: ['students', page, search, directionFilter],
+    queryFn: () => studentsApi.getAll({ page, limit: 10, search, directionId: directionFilter || undefined }),
   })
 
   const { data: courses } = useQuery({
     queryKey: ['courses-list'],
     queryFn: () => coursesApi.getAll({ limit: 100 }),
+  })
+
+  const { data: directions } = useQuery({
+    queryKey: ['directions-list'],
+    queryFn: () => directionsApi.getAll({ limit: 100 }),
   })
 
   const createMutation = useMutation({
@@ -145,7 +152,7 @@ export default function Students() {
               <option value="">—</option>
               {courses?.data.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.direction?.name ? `${c.direction.name} • ` : ''}{c.title}
+                  {c.title} {c.code ? `(${c.code})` : ''}
                 </option>
               ))}
             </select>
@@ -175,25 +182,40 @@ export default function Students() {
 
       {/* Table */}
       <div className="bg-white dark:bg-card-dark rounded-xl shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4">
+        <div className="flex items-center justify-between px-6 py-4 gap-3 flex-wrap">
           <h2 className="text-lg font-bold text-primary">{t('studentList')}</h2>
-          <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="O'quvchi ismini kiriting" />
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-sm text-gray-500">
+              <Filter size={14} />
+              <select
+                className="input-field py-1.5 text-sm w-44"
+                value={directionFilter}
+                onChange={(e) => { setDirectionFilter(e.target.value); setPage(1) }}
+              >
+                <option value="">Barcha yo'nalishlar</option>
+                {directions?.data.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+            <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="O'quvchi ismini kiriting" />
+          </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="table-header">
-                {['№', t('name'), t('phone'), t('group'), t('parentName'), t('parentPhone'), ''].map((h) => (
+                {['№', t('name'), t('phone'), "Yo'nalish", 'Guruh', t('parentName'), t('parentPhone'), ''].map((h) => (
                   <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">{t('loading')}</td></tr>
+                <tr><td colSpan={8} className="text-center py-8 text-gray-400">{t('loading')}</td></tr>
               ) : data?.data.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">{t('notFound')}</td></tr>
+                <tr><td colSpan={8} className="text-center py-8 text-gray-400">{t('notFound')}</td></tr>
               ) : (
                 data?.data.map((s, i) => (
                   <tr key={s.id} className={i % 2 === 0 ? 'table-row-even' : 'table-row-odd'}>
@@ -211,9 +233,19 @@ export default function Students() {
                     </td>
                     <td className="px-4 py-3">{s.user.phone ?? '—'}</td>
                     <td className="px-4 py-3">
+                      {s.courses[0]?.direction
+                        ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">{s.courses[0].direction.name}</span>
+                        : <span className="text-gray-400">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
                       {s.courses[0]
-                        ? <span>{s.courses[0].direction?.name ? `${s.courses[0].direction.name} • ` : ''}{s.courses[0].title}</span>
-                        : '—'}
+                        ? (() => {
+                            const title = s.courses[0].title
+                            const dir = s.courses[0].direction?.name ?? ''
+                            const display = dir && title.startsWith(dir) ? title.slice(dir.length).trim() : title
+                            return <span className="font-medium text-gray-800 dark:text-white">{display || title}</span>
+                          })()
+                        : <span className="text-gray-400">—</span>}
                     </td>
                     <td className="px-4 py-3">{s.parentName ?? '—'}</td>
                     <td className="px-4 py-3">{s.parentPhone ?? '—'}</td>
@@ -311,7 +343,7 @@ export default function Students() {
                   <option value="">—</option>
                   {courses?.data.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.direction?.name ? `${c.direction.name} • ` : ''}{c.title}
+                      {c.title} {c.code ? `(${c.code})` : ''}
                     </option>
                   ))}
                 </select>

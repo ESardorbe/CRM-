@@ -28,13 +28,15 @@ export class CreatePaymentDto {
   @IsNumber({}, { message: "Amount must be a number" })
   amount: number
 
-  @ApiProperty({
-    example: "USD",
-    description: "Currency code",
-  })
-  @IsNotEmpty({ message: "Currency is required" })
+  @ApiProperty({ example: "UZS", description: "Currency code", required: false })
+  @IsOptional()
   @IsString({ message: "Currency must be a string" })
-  currency: string
+  currency?: string
+
+  @ApiProperty({ example: "Monthly payment", description: "Payment description", required: false })
+  @IsOptional()
+  @IsString()
+  description?: string
 
   @ApiProperty({
     example: "completed",

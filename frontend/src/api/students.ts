@@ -23,7 +23,7 @@ export interface UpdateStudentDto {
 }
 
 export const studentsApi = {
-  getAll: (params?: { page?: number; limit?: number; search?: string }) =>
+  getAll: (params?: { page?: number; limit?: number; search?: string; directionId?: string }) =>
     api.get<PaginatedResponse<Student>>('/students', { params }).then((r) => r.data),
 
   getOne: (id: string) =>

@@ -5,6 +5,7 @@ export interface CreatePaymentDto {
   studentId: string
   courseId: string
   amount: number
+  currency?: string
   status: 'pending' | 'completed'
   method: 'cash' | 'card' | 'bank_transfer' | 'online'
   paymentDate: string
@@ -40,4 +41,7 @@ export const statisticsApi = {
 
   getMonthlyReport: (year: number, month: number, courseId?: string) =>
     api.get<MonthlyReport>('/statistics/monthly-report', { params: { year, month, courseId } }).then((r) => r.data),
+
+  getRegistrations: (year: number) =>
+    api.get<{ month: number; students: number; teachers: number }[]>('/statistics/registrations', { params: { year } }).then((r) => r.data),
 }

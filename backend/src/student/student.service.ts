@@ -49,17 +49,22 @@ export class StudentService {
     return this.studentRepository.save(student);
   }
 
-  async findAll(page = 1, limit = 10, search?: string): Promise<{ data: Student[]; total: number; page: number; limit: number }> {
+  async findAll(page = 1, limit = 10, search?: string, directionId?: string): Promise<{ data: Student[]; total: number; page: number; limit: number }> {
     const qb = this.studentRepository
       .createQueryBuilder("student")
       .leftJoinAndSelect("student.user", "user")
-      .leftJoinAndSelect("student.courses", "courses");
+      .leftJoinAndSelect("student.courses", "courses")
+      .leftJoinAndSelect("courses.direction", "courseDirection");
 
     if (search) {
-      qb.where(
-        "LOWER(user.firstName) LIKE :search OR LOWER(user.lastName) LIKE :search OR LOWER(user.email) LIKE :search",
+      qb.andWhere(
+        "(LOWER(user.firstName) LIKE :search OR LOWER(user.lastName) LIKE :search OR LOWER(user.email) LIKE :search)",
         { search: `%${search.toLowerCase()}%` },
       );
+    }
+
+    if (directionId) {
+      qb.andWhere("courseDirection.id = :directionId", { directionId });
     }
 
     const [data, total] = await qb
