@@ -72,9 +72,9 @@ export default function TeacherAttendance() {
   useQuery({
     queryKey: ['attendance-load', selectedCourseId, selectedDate],
     queryFn: async () => {
-      const records = await attendanceApi.getAll({ courseId: selectedCourseId, date: selectedDate })
+      const res = await attendanceApi.getAll({ courseId: selectedCourseId, date: selectedDate, limit: 200 })
       const state: RowState = {}
-      records.forEach((r) => {
+      res.data.forEach((r) => {
         state[r.student.id] = { status: r.status, note: r.note ?? '' }
       })
       setRows(state)

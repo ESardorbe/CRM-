@@ -84,11 +84,21 @@ async function seed() {
     const dir = directions[g.dirIdx];
     const days = dayTypeMap[dir.dayType] ?? [];
     const schedule = days.map((d) => `${d} ${dir.startTime}-${dir.endTime}`);
-    const prefix = dir.name.replace(/\s+/g, '').substring(0, 3).toUpperCase();
-    const code = `${prefix}-${100 + groups.length}`;
+    const code = `G-${String(groups.length + 1).padStart(3, '0')}`;
     const course = courseRepo.create({ title: g.title, code, direction: dir as any, teacher: teachers[g.tIdx] as any, capacity: g.capacity, schedule });
     groups.push(await courseRepo.save(course));
-    console.log(`✓ Group: ${g.title}`);
+    console.log(`✓ Group: ${g.title} [${code}]`);
+  }
+
+  // Update all existing course codes to be sequential (G-001, G-002, ...)
+  const allCourses = await courseRepo.find({ order: { createdAt: 'ASC' } });
+  for (let idx = 0; idx < allCourses.length; idx++) {
+    const expectedCode = `G-${String(idx + 1).padStart(3, '0')}`;
+    if (allCourses[idx].code !== expectedCode) {
+      allCourses[idx].code = expectedCode;
+      await courseRepo.save(allCourses[idx]);
+      console.log(`✓ Fixed code: ${allCourses[idx].title} → ${expectedCode}`);
+    }
   }
 
   // ─── Students (50) ──────────────────────────────────────────────────────────

@@ -29,7 +29,9 @@ export class AttendanceController {
     @Query('courseId') courseId?: string,
     @Query('date') date?: string,
     @Query('studentId') studentId?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.service.findAll(courseId, date, studentId);
+    return this.service.findAll(courseId, date, studentId, Number(page) || 1, Number(limit) || 20);
   }
 }

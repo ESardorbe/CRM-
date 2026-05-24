@@ -39,6 +39,7 @@ export default function Attendance() {
   const [attCourseId, setAttCourseId] = useState('')
   const [attDate, setAttDate] = useState('')
   const [attSearch, setAttSearch] = useState('')
+  const [attPage, setAttPage] = useState(1)
 
   // Movements tab state
   const [form, setForm] = useState<CreateMovementDto>(EMPTY)
@@ -73,12 +74,17 @@ export default function Attendance() {
     : allCourses?.data ?? []
 
   const { data: attRecords, isLoading: attLoading } = useQuery({
-    queryKey: ['admin-attendance', attCourseId, attDate],
-    queryFn: () => attendanceApi.getAll({ courseId: attCourseId || undefined, date: attDate || undefined }),
-    enabled: !!(attCourseId || attDate),
+    queryKey: ['admin-attendance', attCourseId, attDate, attPage],
+    queryFn: () => attendanceApi.getAll({
+      courseId: attCourseId || undefined,
+      date: attDate || undefined,
+      page: attPage,
+      limit: 20,
+    }),
+    enabled: tab === 'attendance',
   })
 
-  const filteredAtt = attRecords?.filter((r) =>
+  const filteredAtt = attRecords?.data.filter((r) =>
     attSearch
       ? `${r.student.user.firstName} ${r.student.user.lastName}`.toLowerCase().includes(attSearch.toLowerCase())
       : true,
@@ -135,7 +141,7 @@ export default function Attendance() {
                 <select
                   className="input-field"
                   value={attDirectionId}
-                  onChange={(e) => { setAttDirectionId(e.target.value); setAttCourseId('') }}
+                  onChange={(e) => { setAttDirectionId(e.target.value); setAttCourseId(''); setAttPage(1) }}
                 >
                   <option value="">Barchasi</option>
                   {directions?.data.map((d) => (
@@ -148,11 +154,11 @@ export default function Attendance() {
                 <select
                   className="input-field"
                   value={attCourseId}
-                  onChange={(e) => setAttCourseId(e.target.value)}
+                  onChange={(e) => { setAttCourseId(e.target.value); setAttPage(1) }}
                 >
                   <option value="">Barchasi</option>
                   {attCourses?.map((c) => (
-                    <option key={c.id} value={c.id}>{c.title}</option>
+                    <option key={c.id} value={c.id}>{c.code ? `${c.code} — ${c.title}` : c.title}</option>
                   ))}
                 </select>
               </div>
@@ -162,7 +168,7 @@ export default function Attendance() {
                   type="date"
                   className="input-field"
                   value={attDate}
-                  onChange={(e) => setAttDate(e.target.value)}
+                  onChange={(e) => { setAttDate(e.target.value); setAttPage(1) }}
                 />
               </div>
               <div>
@@ -184,24 +190,22 @@ export default function Attendance() {
                   </tr>
                 </thead>
                 <tbody>
-                  {!attCourseId && !attDate ? (
-                    <tr>
-                      <td colSpan={8} className="text-center py-10 text-gray-400 text-sm">
-                        Guruh yoki sanani tanlang
-                      </td>
-                    </tr>
-                  ) : attLoading ? (
+                  {attLoading ? (
                     <tr><td colSpan={8} className="text-center py-8 text-gray-400">Yuklanmoqda...</td></tr>
                   ) : filteredAtt?.length === 0 ? (
                     <tr><td colSpan={8} className="text-center py-8 text-gray-400">Davomat topilmadi</td></tr>
                   ) : (
                     filteredAtt?.map((r, i) => (
                       <tr key={r.id} className={i % 2 === 0 ? 'table-row-even' : 'table-row-odd'}>
-                        <td className="px-4 py-3 font-medium">{i + 1}</td>
+                        <td className="px-4 py-3 font-medium">{(attPage - 1) * 20 + i + 1}</td>
                         <td className="px-4 py-3">
                           {r.student.user.firstName} {r.student.user.lastName}
                         </td>
-                        <td className="px-4 py-3">{r.course.title}</td>
+                        <td className="px-4 py-3">
+                          <span className="font-mono text-xs font-semibold text-primary">
+                            {(r.course as any).code ?? r.course.title}
+                          </span>
+                        </td>
                         <td className="px-4 py-3">{(r.course as any).direction?.name ?? '—'}</td>
                         <td className="px-4 py-3">
                           {(r.course as any).teacher?.user
@@ -220,6 +224,9 @@ export default function Attendance() {
                   )}
                 </tbody>
               </table>
+            </div>
+            <div className="px-6 py-4">
+              <Pagination page={attPage} total={attRecords?.total ?? 0} limit={20} onChange={(p) => { setAttPage(p) }} />
             </div>
           </div>
         </div>

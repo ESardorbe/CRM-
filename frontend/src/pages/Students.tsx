@@ -239,12 +239,9 @@ export default function Students() {
                     </td>
                     <td className="px-4 py-3">
                       {s.courses[0]
-                        ? (() => {
-                            const title = s.courses[0].title
-                            const dir = s.courses[0].direction?.name ?? ''
-                            const display = dir && title.startsWith(dir) ? title.slice(dir.length).trim() : title
-                            return <span className="font-medium text-gray-800 dark:text-white">{display || title}</span>
-                          })()
+                        ? <span className="font-mono text-xs font-semibold px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded">
+                            {s.courses[0].code ?? s.courses[0].title}
+                          </span>
                         : <span className="text-gray-400">—</span>}
                     </td>
                     <td className="px-4 py-3">{s.parentName ?? '—'}</td>

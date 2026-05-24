@@ -47,15 +47,24 @@ export class AttendanceService {
     });
   }
 
-  async findAll(courseId?: string, date?: string, studentId?: string): Promise<AttendanceRecord[]> {
+  async findAll(
+    courseId?: string,
+    date?: string,
+    studentId?: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{ data: AttendanceRecord[]; total: number; page: number; limit: number }> {
     const where: any = {};
     if (courseId) where.course = { id: courseId };
     if (date) where.date = date;
     if (studentId) where.student = { id: studentId };
-    return this.repo.find({
+    const [data, total] = await this.repo.findAndCount({
       where,
       relations: ['student', 'student.user', 'course', 'course.direction', 'course.teacher', 'course.teacher.user'],
       order: { date: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
     });
+    return { data, total, page, limit };
   }
 }

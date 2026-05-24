@@ -16,8 +16,25 @@ export class CourseService {
     private studentService: StudentService
   ) {}
 
+  private async generateNextCode(): Promise<string> {
+    const courses = await this.courseRepository.find({ select: ['code'] });
+    let maxNum = 0;
+    for (const c of courses) {
+      const match = c.code?.match(/^G-(\d+)$/);
+      if (match) {
+        const n = parseInt(match[1], 10);
+        if (n > maxNum) maxNum = n;
+      }
+    }
+    return `G-${String(maxNum + 1).padStart(3, '0')}`;
+  }
+
   async create(createCourseDto: CreateCourseDto): Promise<Course> {
     const { teacherId, directionId, ...courseData } = createCourseDto as CreateCourseDto & { directionId?: string };
+
+    if (!courseData.code) {
+      courseData.code = await this.generateNextCode();
+    }
 
     const newCourse = this.courseRepository.create({
       ...courseData,

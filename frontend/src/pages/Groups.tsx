@@ -14,17 +14,6 @@ const DAY_TYPE_DAYS: Record<string, string[]> = {
   daily: ['Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma'],
 }
 
-function generateCode(directionName: string, existingCodes: string[]): string {
-  const prefix = directionName.replace(/\s+/g, '').substring(0, 3).toUpperCase()
-  let code: string
-  let attempts = 0
-  do {
-    const num = Math.floor(Math.random() * 900) + 100
-    code = `${prefix}-${num}`
-    attempts++
-  } while (existingCodes.includes(code) && attempts < 20)
-  return code
-}
 
 const EMPTY: CreateCourseDto = {
   title: '',
@@ -67,8 +56,6 @@ export default function Groups() {
     queryFn: () => directionsApi.getAll({ limit: 100 }),
   })
 
-  const existingCodes = data?.data.map((c) => c.code ?? '') ?? []
-
   useEffect(() => {
     if (!form.directionId) {
       setForm((f) => ({ ...f, schedule: [], code: '' }))
@@ -78,9 +65,8 @@ export default function Groups() {
     if (!dir) return
     const days = DAY_TYPE_DAYS[dir.dayType] ?? []
     const schedule = days.map((day) => `${day} ${dir.startTime}-${dir.endTime}`)
-    const code = generateCode(dir.name, existingCodes)
     const title = form.title || dir.name
-    setForm((f) => ({ ...f, schedule, code, title }))
+    setForm((f) => ({ ...f, schedule, code: '', title }))
   }, [form.directionId, directions?.data])
 
   const createMutation = useMutation({
@@ -161,7 +147,7 @@ export default function Groups() {
           </div>
           <div>
             <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">{t('groupCode')}</label>
-            <input className="input-field bg-gray-50" placeholder="Avtomatik generatsiya" value={form.code ?? ''} onChange={set('code')} />
+            <input className="input-field bg-gray-50 text-gray-400" placeholder="Avtomatik (G-001, G-002...)" value={form.code ?? ''} readOnly />
           </div>
           <div>
             <label className="text-sm text-gray-600 dark:text-gray-400 mb-1 block">{t('teacher')}</label>

@@ -20,12 +20,13 @@ export default function StudentAttendance() {
     enabled: !!user?.id,
   })
 
-  const { data: records, isLoading } = useQuery({
+  const { data: attendanceRes, isLoading } = useQuery({
     queryKey: ['my-attendance', studentRecord?.id],
-    queryFn: () => attendanceApi.getAll({ studentId: studentRecord!.id }),
+    queryFn: () => attendanceApi.getAll({ studentId: studentRecord!.id, limit: 500 }),
     enabled: !!studentRecord?.id,
   })
 
+  const records = attendanceRes?.data
   const totalPresent = records?.filter((r) => r.status === 'present').length ?? 0
   const totalAbsent = records?.filter((r) => r.status === 'absent').length ?? 0
   const totalLate = records?.filter((r) => r.status === 'late').length ?? 0
