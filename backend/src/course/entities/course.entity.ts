@@ -29,11 +29,11 @@ export class Course {
   @JoinTable({ name: 'course_students' })
   students: Student[];
 
-  @Column({ nullable: true })
-  startDate: string;
+  @Column({ type: 'date', nullable: true })
+  startDate: string | null;
 
-  @Column({ nullable: true })
-  endDate: string;
+  @Column({ type: 'date', nullable: true })
+  endDate: string | null;
 
   @Column({ default: true })
   isActive: boolean;

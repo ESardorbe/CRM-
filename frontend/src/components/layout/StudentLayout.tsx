@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Home, BookOpen, User, LogOut, Menu, X, ClipboardList, Sun, Moon } from 'lucide-react'
+import { Home, BookOpen, User, LogOut, Menu, X, ClipboardList, Sun, Moon, FileText, CalendarDays, Star } from 'lucide-react'
 import { useAuthContext } from '../../context/AuthContext'
 import { useLang } from '../../context/LangContext'
+import NotificationBell from '../NotificationBell'
 
 export default function StudentLayout() {
   const { user, logout } = useAuthContext()
@@ -27,6 +28,10 @@ export default function StudentLayout() {
     { to: '/student/dashboard', icon: Home, label: t('report') },
     { to: '/student/groups', icon: BookOpen, label: t('myCourses') },
     { to: '/student/attendance', icon: ClipboardList, label: t('myAttendance') },
+    { to: '/student/materials', icon: FileText, label: t('materials') },
+    { to: '/student/schedule', icon: CalendarDays, label: t('schedule') },
+    { to: '/student/assignments', icon: ClipboardList, label: t('assignments') },
+    { to: '/student/grades', icon: Star, label: t('grades') },
     { to: '/student/profile', icon: User, label: t('myProfile') },
   ]
 
@@ -116,6 +121,7 @@ export default function StudentLayout() {
             <Menu size={20} />
           </button>
           <div className="flex-1" />
+          <NotificationBell />
           <span className="text-sm font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
             {t('students')}
           </span>

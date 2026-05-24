@@ -1,6 +1,6 @@
 import { Injectable, HttpException, HttpStatus } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, FindOptionsWhere } from "typeorm";
 import { Course } from "./entities/course.entity";
 import { CreateCourseDto } from "./dto/create-course.dto";
 import { UpdateCourseDto } from "./dto/update-course.dto";
@@ -16,45 +16,37 @@ export class CourseService {
     private studentService: StudentService
   ) {}
 
-  private async generateNextCode(): Promise<string> {
-    const courses = await this.courseRepository.find({ select: ['code'] });
-    let maxNum = 0;
-    for (const c of courses) {
-      const match = c.code?.match(/^G-(\d+)$/);
-      if (match) {
-        const n = parseInt(match[1], 10);
-        if (n > maxNum) maxNum = n;
-      }
-    }
-    return `G-${String(maxNum + 1).padStart(3, '0')}`;
-  }
-
   async create(createCourseDto: CreateCourseDto): Promise<Course> {
     const { teacherId, directionId, ...courseData } = createCourseDto as CreateCourseDto & { directionId?: string };
 
-    if (!courseData.code) {
-      courseData.code = await this.generateNextCode();
-    }
+    return this.courseRepository.manager.transaction(async (manager) => {
+      if (!courseData.code) {
+        // Advisory lock prevents two concurrent requests from generating the same code
+        await manager.query('SELECT pg_advisory_xact_lock(20240001)');
+        const result = await manager.query(
+          `SELECT MAX(CAST(SUBSTRING(code FROM 3) AS INTEGER)) AS max FROM courses WHERE code ~ '^G-[0-9]+$'`
+        );
+        const maxNum: number = result[0]?.max ?? 0;
+        courseData.code = `G-${String(maxNum + 1).padStart(3, '0')}`;
+      }
 
-    const newCourse = this.courseRepository.create({
-      ...courseData,
-      students: [],
+      const newCourse = manager.create(Course, { ...courseData, students: [] });
+
+      if (teacherId) {
+        await this.teacherService.findOne(teacherId);
+        newCourse.teacher = { id: teacherId } as any;
+      }
+
+      if (directionId) {
+        newCourse.direction = { id: directionId } as any;
+      }
+
+      return manager.save(newCourse);
     });
-
-    if (teacherId) {
-      await this.teacherService.findOne(teacherId);
-      newCourse.teacher = { id: teacherId } as any;
-    }
-
-    if (directionId) {
-      newCourse.direction = { id: directionId } as any;
-    }
-
-    return this.courseRepository.save(newCourse);
   }
 
   async findAll(page = 1, limit = 10, isActive?: boolean): Promise<{ data: Course[]; total: number; page: number; limit: number }> {
-    const where: any = {};
+    const where: FindOptionsWhere<Course> = {};
     if (isActive !== undefined) where.isActive = isActive;
 
     const [data, total] = await this.courseRepository.findAndCount({

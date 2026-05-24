@@ -12,24 +12,25 @@ export class AttendanceService {
   ) {}
 
   async saveBulk(dto: BulkAttendanceDto): Promise<AttendanceRecord[]> {
-    const results: AttendanceRecord[] = [];
-    for (const r of dto.records) {
-      // upsert: delete existing then insert
-      await this.repo.delete({
-        student: { id: r.studentId } as any,
-        course: { id: dto.courseId } as any,
-        date: dto.date,
-      });
-      const record = this.repo.create({
-        student: { id: r.studentId } as any,
-        course: { id: dto.courseId } as any,
-        date: dto.date,
-        status: (r.status as any) ?? 'present',
-        note: r.note,
-      });
-      results.push(await this.repo.save(record));
-    }
-    return results;
+    return this.repo.manager.transaction(async (manager) => {
+      const results: AttendanceRecord[] = [];
+      for (const r of dto.records) {
+        await manager.delete(AttendanceRecord, {
+          student: { id: r.studentId } as any,
+          course: { id: dto.courseId } as any,
+          date: dto.date,
+        });
+        const record = manager.create(AttendanceRecord, {
+          student: { id: r.studentId } as any,
+          course: { id: dto.courseId } as any,
+          date: dto.date,
+          status: (r.status as any) ?? 'present',
+          note: r.note,
+        });
+        results.push(await manager.save(record));
+      }
+      return results;
+    });
   }
 
   async findByCourseAndDate(courseId: string, date: string): Promise<AttendanceRecord[]> {

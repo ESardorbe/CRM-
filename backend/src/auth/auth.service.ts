@@ -347,6 +347,19 @@ export class AuthService {
     return tokens;
   }
 
+  async refreshTokens(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
+    try {
+      const payload = this.jwtService.verify(refreshToken);
+      const user = await this.userRepository.findOne({ where: { id: payload.sub } });
+      if (!user || user.isLogOut) throw new Error('logged out');
+      const tokens = this.generateTokens(user);
+      await this.userRepository.save(user);
+      return tokens;
+    } catch {
+      throw new HttpException('Refresh token yaroqsiz', HttpStatus.UNAUTHORIZED);
+    }
+  }
+
   generateTokens(user: User) {
     const payload: JwtPayload = {
       email: user.email,

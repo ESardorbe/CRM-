@@ -19,9 +19,11 @@ import { Role } from './enums/role.enum';
 import { RoleGuard } from './guards/role.guard';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { RegisterWithRoleDto } from './dto/register-with-role.dto';
+import { Throttle, SkipThrottle } from '@nestjs/throttler';
 
 @ApiTags('Authentication')
 @ApiBearerAuth()
+@SkipThrottle()
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
@@ -35,10 +37,18 @@ export class AuthController {
   }
 
   @Post('login')
+  @SkipThrottle({ default: false })
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Login' })
   @ApiResponse({ status: 200, description: 'User logged in successfully' })
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
+  }
+
+  @Post('refresh')
+  @ApiOperation({ summary: 'Refresh access token' })
+  async refresh(@Body('refreshToken') refreshToken: string) {
+    return this.authService.refreshTokens(refreshToken);
   }
 
   @Post('verify-email')

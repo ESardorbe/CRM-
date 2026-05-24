@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Home, Users, User, LogOut, Menu, X, ClipboardList, Sun, Moon } from 'lucide-react'
+import { Home, Users, User, LogOut, Menu, X, ClipboardList, Sun, Moon, BookOpen, CalendarDays, Star } from 'lucide-react'
 import { useAuthContext } from '../../context/AuthContext'
 import { useLang } from '../../context/LangContext'
+import NotificationBell from '../NotificationBell'
 
 export default function TeacherLayout() {
   const { user, logout } = useAuthContext()
@@ -25,6 +26,10 @@ export default function TeacherLayout() {
     { to: '/teacher/dashboard', icon: Home, label: t('report') },
     { to: '/teacher/groups', icon: Users, label: t('myGroups') },
     { to: '/teacher/attendance', icon: ClipboardList, label: t('takeAttendance') },
+    { to: '/teacher/materials', icon: BookOpen, label: t('materials') },
+    { to: '/teacher/schedule', icon: CalendarDays, label: t('schedule') },
+    { to: '/teacher/assignments', icon: ClipboardList, label: t('assignments') },
+    { to: '/teacher/grades', icon: Star, label: t('grades') },
     { to: '/teacher/profile', icon: User, label: t('myProfile') },
   ]
 
@@ -113,6 +118,7 @@ export default function TeacherLayout() {
             <Menu size={20} />
           </button>
           <div className="flex-1" />
+          <NotificationBell />
           <span className="text-sm font-medium text-green-700 bg-green-100 dark:bg-green-900/30 dark:text-green-300 px-2 py-0.5 rounded-full">
             {t('teachers')}
           </span>
